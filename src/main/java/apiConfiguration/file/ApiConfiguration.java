@@ -1,6 +1,9 @@
 package apiConfiguration.file;
 
 import converter.file.impl.ConverterTxtFile;
+import converter.textParser.Parsable;
+import converter.textParser.impl.ParserText;
+import entity.FullTextComponent;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -23,6 +26,14 @@ public class ApiConfiguration {
 
     public ConverterTxtFile converterTxtFile(final BufferedReader bufferedReader){
         return new ConverterTxtFile(bufferedReader);
+    }
+
+    public Parsable parsable(){
+        return new ParserText();
+    }
+
+    public FullTextComponent fullTextComponent(String text){
+        return new FullTextComponent(text);
     }
 
 

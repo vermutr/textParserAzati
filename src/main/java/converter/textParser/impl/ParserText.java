@@ -1,72 +1,76 @@
 package converter.textParser.impl;
 
 import converter.textParser.Parsable;
-import entity.TextComponent;
-import entity.impl.ChapterComponent;
-import entity.impl.ParagraphComponent;
-import entity.impl.SentenceComponent;
-import entity.impl.sentenseSymbol.PunctuationComponent;
-import entity.impl.sentenseSymbol.SpacerComponent;
-import entity.impl.sentenseSymbol.WordComponent;
+import entity.*;
+import entity.sentenseSymbol.PartsOfSentence;
+import entity.sentenseSymbol.impl.PunctuationComponent;
+import entity.sentenseSymbol.impl.SpacerComponent;
+import entity.sentenseSymbol.impl.WordComponent;
 import utils.regax.Regex;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public class ParserText implements Parsable<TextComponent> {
+public class ParserText implements Parsable {
+
 
     @Override
-    public List<TextComponent> doParse(String text) {
+    public FullTextComponent doParse(FullTextComponent fullTextComponent) {
+        parseFromTextToChapters(fullTextComponent);
+        parseFromChapterToParagraphs(fullTextComponent.getChapterComponentList());
+        parseFromParagraphsToSentences(fullTextComponent.getChapterComponentList());
+        parseFromSentencesToWordAndPunctuation(fullTextComponent.getChapterComponentList());
+        return fullTextComponent;
 
-        List<ChapterComponent> chapterComponents = parseFromTextToChapters(text);
-        List<ParagraphComponent> paragraphComponents = parseFromChapterToParagraphs(chapterComponents);
-        List<SentenceComponent> sentenceComponents = parseFromParagraphsToSentences(paragraphComponents);
-        List<SentenceComponent> sentenceComponentsExtended = parseFromSentencesToWordAndPunctuation(sentenceComponents);
-
-        return Stream.of(chapterComponents,
-                        paragraphComponents,
-                        sentenceComponents,
-                        sentenceComponentsExtended)
-                .flatMap(Collection::stream)
-                .collect(Collectors.toList());
     }
 
-    private List<ChapterComponent> parseFromTextToChapters(String text) {
-        return Arrays.stream(text.split(Regex.parseRegexChapter))
+    private void parseFromTextToChapters(FullTextComponent fullTextComponent) {
+        List<ChapterComponent> chapterComponents =
+                Arrays.stream(fullTextComponent.getFullText().split(Regex.parseRegexChapter))
                 .map(ChapterComponent::new)
                 .collect(Collectors.toList());
-
+        fullTextComponent.setChapterComponentList(chapterComponents);
     }
 
-    private List<ParagraphComponent> parseFromChapterToParagraphs(List<ChapterComponent> chapters) {
-        return chapters.stream()
-                .map(text -> text.getTextComponent().split(Regex.parseRegexParagraphs))
-                .flatMap(Arrays::stream)
-                .map(ParagraphComponent::new)
-                .collect(Collectors.toList());
+    private void parseFromChapterToParagraphs(List<ChapterComponent> chapterComponentList) {
+        for(ChapterComponent chapterComponent: chapterComponentList){
+            List<ParagraphComponent> paragraphComponents =
+                    Arrays.stream(chapterComponent.getChapter().split(Regex.parseRegexParagraphs))
+                    .map(ParagraphComponent::new)
+                    .collect(Collectors.toList());
+            chapterComponent.setParagraphComponentsList(paragraphComponents);
+        }
     }
 
-    private List<SentenceComponent> parseFromParagraphsToSentences(List<ParagraphComponent> paragraphs) {
-        return paragraphs.stream()
-                .map(text -> text.getTextComponent().split(Regex.parseRegexSentence))
-                .flatMap(Arrays::stream)
-                .map(SentenceComponent::new)
-                .collect(Collectors.toList());
+    private void parseFromParagraphsToSentences(List<ChapterComponent> chapterComponentList) {
+        for (ChapterComponent chapterComponent: chapterComponentList){
+            for(ParagraphComponent paragraphComponent : chapterComponent.getParagraphComponentsList()){
+                List<SentenceComponent> sentenceComponents =
+                        Arrays.stream(paragraphComponent.getParagraph().split(Regex.parseRegexSentence))
+                        .map(SentenceComponent::new)
+                        .collect(Collectors.toList());
+                paragraphComponent.setSentenceComponentList(sentenceComponents);
+            }
+        }
     }
 
-    private List<SentenceComponent> parseFromSentencesToWordAndPunctuation(List<SentenceComponent> sentenceComponents) {
-        return sentenceComponents.stream()
-                .map(text -> text.getTextComponent().split(Regex.parseRegexSymbols))
-                .flatMap(Arrays::stream)
-                .map(createWordSpacerPunctuationObject())
-                .collect(Collectors.toList());
+    private void parseFromSentencesToWordAndPunctuation(List<ChapterComponent> chapterComponentList) {
+        for(ChapterComponent chapterComponent: chapterComponentList){
+            for (ParagraphComponent paragraphComponent: chapterComponent.getParagraphComponentsList()){
+                for (SentenceComponent sentenceComponent: paragraphComponent.getSentenceComponentList()){
+                    List<PartsOfSentence> partsOfSentences =
+                            Arrays.stream(sentenceComponent.getSentence().split(Regex.parseRegexSymbols))
+                            .map(createWordSpacerPunctuationObject())
+                            .collect(Collectors.toList());
+                    sentenceComponent.setPartsOfSentences(partsOfSentences);
+                }
+            }
+        }
     }
 
-    private Function<String, SentenceComponent> createWordSpacerPunctuationObject() {
+    private Function<String, PartsOfSentence> createWordSpacerPunctuationObject() {
         return symbol -> {
             if (symbol.matches(Regex.parseRegexCheckIsSpacer)) {
                 return new SpacerComponent(symbol);
