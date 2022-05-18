@@ -23,6 +23,7 @@ public class Main {
         Parsable parsable = apiConfiguration.parsable();
         parsable.doParse(fullTextComponent);
 
+
         System.out.println("\n");
     }
 
